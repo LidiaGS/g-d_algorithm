@@ -4,7 +4,7 @@
 ## FUNCTIONS
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 PROGNAME=$(basename $0)
-##
+
 error_no_exit()
 {
 	echo ${blue}"${PROGNAME}: $1"${white} 1>&2
@@ -21,10 +21,10 @@ white=$( tput setaf 7)
 
 # Tools
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-TRIMMOMATIC_PATH=/home/caos/lgarrido/applications/trimmomatic/Trimmomatic-0.36 ## /path/to/Trimmomatic
-BWA_PATH=/home/caos/lgarrido/applications/bwa-0.7.17 ## /path/to/BWA
-ST_PATH=/home/caos/lgarrido/applications/samtools ## /path/to/SAMtools
-gd_PATH=/home/caos/lgarrido/algorithm/paper ## /path/to/g-d_algorithm_script
+TRIMMOMATIC_PATH=/path/to/Trimmomatic
+BWA_PATH=/path/to/BWA
+ST_PATH=/path/to/SAMtools
+gd_PATH=/path/to/g-d_algorithm_script
 
 # Input data
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -41,11 +41,11 @@ OUTPUT_PATH=${CWD}/${output_folder}
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## CREATE FOLDERS
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-mkdir ${INDEX_PATH} || error_no_exit "Directory already exist! Overwritting..."
-mkdir ${OUTPUT_PATH} || error_no_exit "Directory already exist! Overwritting..."
-mkdir ${OUTPUT_PATH}/filtered_reads || error_no_exit "Directory already exist! Overwritting..."
-mkdir ${OUTPUT_PATH}/mapped_reads || error_no_exit "Directory already exist! Overwritting..."
-mkdir ${OUTPUT_PATH}/filtered_map || error_no_exit "Directory already exist! Overwritting..."
+mkdir ${INDEX_PATH} || error_no_exit "Directory already exist! May be overwritting..."
+mkdir ${OUTPUT_PATH} || error_no_exit "Directory already exist! May be overwritting..."
+mkdir ${OUTPUT_PATH}/filtered_reads || error_no_exit "Directory already exist! May be overwritting..."
+mkdir ${OUTPUT_PATH}/mapped_reads || error_no_exit "Directory already exist! May be overwritting..."
+mkdir ${OUTPUT_PATH}/filtered_map || error_no_exit "Directory already exist! May be overwritting..."
 
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## CREATE REFERENCES' INDEXES
@@ -94,4 +94,5 @@ done
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 echo "Reads assignment starts at: `date +%Y/%m/%d-%H:%M:%S`";
 python ${gd_PATH}/g-d_algorithm_script.py -g 0.99 -d 0.98 -m ${OUTPUT_PATH}/filtered_map -s ${R1} -o ${OUTPUT_PATH}/g-d_assignment.csv;
+
 echo "Pipeline ends at: `date +%Y/%m/%d-%H:%M:%S`";
