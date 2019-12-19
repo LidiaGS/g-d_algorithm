@@ -1,10 +1,15 @@
 ## 1. Introduction
 
-#### 1.1. What's the *gamma-delta* algorithm?
+#### What's the *gamma-delta* algorithm?
 
-The *gamma-delta* algorithm aims to identify reads that provide taxonomical information at species level. For each mapping of a read *r* against a reference we obtain a mapping ratio *A*, which is calculated by dividing the number of matching nucleotides from the query read *r* to the target sequences (*nm*) among the total number of nucleotides involved in the alignment (*nt*). Then, a read *r* will be assigned to species *i* when the mapping ratio *A* against species *i* is higher than *gamma* and the alternative species’ mapping ratios are bellow *delta* (Garrido-Sanz et al. 2019, *MBMG*).
+The *gamma-delta* algorithm aims to identify reads that provide taxonomical information at species level. In particular, it is desined to retain only those reads that helps for identifying species. Briefly, what *gamma-delta* algorithm does is for each mapping of a read *r* against a reference, it obtains a mapping ratio *A*, which is calculated by dividing the number of matching nucleotides from the query read *r* to the target sequences (*nm*) among the total number of nucleotides involved in the alignment (*nt*). Then, a read *r* will be assigned to species *i* when the mapping ratio *A* against species *i* is higher than *gamma* and the alternative species’ mapping ratios are bellow *delta* (Garrido-Sanz et al. 2019, *MBMG*). This algorithm has been writtien in python2.7 language and runs on command line under Linux. 
 
-#### 1.2. Setup
+## 2. Setup
+
+#### 2.1. Tools
+The pipeline "submit_pipeline.sh" requieres to have installed the following tools: Trimmomatic, BWA aligner and SAMtools. For the usage of g-d_algorithm_sort_and_sv.py script, also python2.7 had to be installed and the libraries csv, argparse, os, operator and decimal. 
+
+#### 2.2. Paths
 For the proper performance of the pipeline the user should modify the below listed paths in the "submit_pipeline.sh" script to its own:
 
   TRIMMOMATIC_PATH=/path/to/Trimmomatic<br>
@@ -13,8 +18,11 @@ For the proper performance of the pipeline the user should modify the below list
   gd_PATH=/path/to/g-d_algorithm_script<br>
   REF_PATH=/path/to/references<br>
   R1=/path/to/sample<br>
+ 
+ #### 2.3. BWA indexes
+ Notice that the creation of BWA indexes only needs to be performed onces for an specific reference, afterwards this step should be skipped.
 
-## 2. Command-line and options
+## 3. Command-line and options
 
 cd /path/to/script<br>
 ./submit_pipeline.sh
@@ -25,7 +33,7 @@ python g-d_algorithm_sort_and_sv.py -g 0.99 -d 0.98 -m /path/to/sams/folder -s r
 #### Paired-end reads assingment
 python g-d_algorithm_sort_and_sv.py -g 0.99 -d 0.98 -m /path/to/sams/folder -r1 forward.pe.fastq -r2 reverse.pe.fastq -o assignment_PE-reads.csv;<br>
 
-## 3. Output format
+## 4. Output format
 
 **Column header:** Query name of the sample<br>
 **Not-Map:** Number of reads that did not map to any reference<br>
@@ -45,13 +53,13 @@ python g-d_algorithm_sort_and_sv.py -g 0.99 -d 0.98 -m /path/to/sams/folder -r1 
 | Reference 3 (4 \| 0.04)  | Reference 1 (10 \| 0.10)  |
 | Reference 4 (1 \| 0.01)  | 0  |
 
-## 4. Authors
+## 5. Authors
 * Lidia Garrido-Sanz [lidia.garrido@uab.cat] 
 * Miquel Àngel Senar
 * Josep Piñol
 
-## 5. Reporting bugs
+## 6. Reporting bugs
 All reports and feedbacks are highly appreciate. Please report any suggestion on github or by email to lidia.garrido@uab.cat. 
 
-## 6. Disclaimer
+## 7. Disclaimer
 The authors provided the information in good faith. Under no circumstance shall authors and the Autonomous University of Barcelona have any liability to you for any loss or damage of any kind incurred as a result of the use of the information provided. The use of this information is solely at your own risk. 
