@@ -1,3 +1,22 @@
+# g-d_algorithm_script.py 
+#  
+# Implementation of the gamma-delta algorithm
+# This file is part of the https://github.com/LidiaGS/g-d_algorithm.
+# Copyright (c) 2019 Universitat Autònoma de Barcelona
+# 
+# This program is free software: you can redistribute it and/or modify  
+# it under the terms of the GNU General Public License as published by  
+# the Free Software Foundation, version 3.
+# 
+# This program is distributed in the hope that it will be useful, but 
+# WITHOUT ANY WARRANTY; without even the implied warranty of 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+# General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License 
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
 import csv
 import argparse
 import os
@@ -18,15 +37,13 @@ args = parser.parse_args()
 
 
 ## Abreviations
-# HMP: Higher Mapping Percentage
-# NI:  Non-informative
-# A1:  First highest mapping percentage
-# A2:  Second highest mapping percentage
+# A1:  First highest mapping ratio
+# A2:  Second highest mapping ratio
 
 ## FUNCTIONS 
 
-## Obtaining the mapping percentage read against a reference by using CIGAR and NM from SAM file
-def percentage_alignment(read_CIGAR, read_NM, read_len):
+## Obtaining the mapping ratio of a read against a reference by using CIGAR and NM from SAM file
+def mapping_ratio_alignment(read_CIGAR, read_NM, read_len):
     num_cigar = 0
     match_mismatch = 0
     insertion = 0
@@ -39,7 +56,7 @@ def percentage_alignment(read_CIGAR, read_NM, read_len):
     match = 0 
     NM_mismatch = 0
     total_cigar = 0
-    aln_percentage = 0
+    aln_ratio = 0
 
     ## Trim CIGAR into parts and join same values: 
     try: 
@@ -83,9 +100,9 @@ def percentage_alignment(read_CIGAR, read_NM, read_len):
     ## Length of CIGAR
     total_cigar = match_mismatch + insertion + deletion + soft_clipped + hard_clipped + padding + skipped + mismatch + match
 
-    ## Mapping percentage
-    aln_percentage = (((read_len + deletion + skipped) - float(read_NM) - soft_clipped - hard_clipped - mismatch) / (read_len + deletion + skipped)) 
-    return aln_percentage
+    ## Mapping ratio
+    aln_ratio = (((read_len + deletion + skipped) - float(read_NM) - soft_clipped - hard_clipped - mismatch) / (read_len + deletion + skipped)) 
+    return aln_ratio
 
 ## Looking for NM information thought columns of SAM rows
 def findNM(samLine):
@@ -95,7 +112,7 @@ def findNM(samLine):
             return elem[5:] ## Keeping NM tag value without "NM:i:"
     return 0
 
-## Create a dictionary using read's names as key and adding an empty list of three elements (best hit ref., first HMP and second best hit ref.) to each dictionary element. 
+## Create a dictionary using read's names as key and adding an empty list of three elements (best hit ref., A1 and second best hit ref.) to each dictionary element. 
 def load_reads_data(sampleDoc): 
     print 'Loading sample data...'
     reads = open(sampleDoc, "r") 
@@ -164,10 +181,9 @@ def check_distance(ReadDic): #
         if (ReadDic[rName][0] == 0):
             ReadDic[rName][1] = "Not-Map"
         elif ((ReadDic[rName][0] != 0) and (float(ReadDic[rName][0]) < float(args.gamma))):
-            ReadDic[rName][1] = "HMR-below-gamma"
+            ReadDic[rName][1] = "A1-below-gamma"
         elif ((float(ReadDic[rName][0]) >= float(args.gamma)) and (float(ReadDic[rName][2]) >= float(args.delta))):
-            ReadDic[rName][1] = "SHMR-above-delta"
-        ##print(rName,";",ReadDic[rName])
+            ReadDic[rName][1] = "A2-above-delta"
     return ReadDic
 
 ## Saving read's mapping information for a given reference into the read's dictionary
@@ -177,26 +193,22 @@ def save_map_info(mapRow, mapRef, ReadDic):
     rName = str(rename_paired_end(row[0],row[1])) ## Name
 
     try: # The read has already information
-        fHMP, refHMP, sHMP = ReadDic[rName]
-        if (refHMP != "SHMR-above-delta"): # Non-informative reads
-            #flag = row[1] ## flag
+        fA1, refA1, A2 = ReadDic[rName]
+        if (refA1 != "A2-above-delta"): # Non-informative reads
             cigar = row[5]
             readLen = len(row[9])
             NM = findNM(row)
-            newPer = percentage_alignment(cigar, NM, readLen)
-            if (newPer >= fHMP): # New percentage is higher or equal to the fHMP
+            newRatio = mapping_ratio_alignment(cigar, NM, readLen)
+            if (newRatio >= fA1): # New mapping ratio is higher or equal to the fA1
                 ReadDic[rName][2] = ReadDic[rName][0]
-                ReadDic[rName][0] = newPer
+                ReadDic[rName][0] = newRatio
                 ReadDic[rName][1] = mapRef
-                # ReadDic = check_delta(ReadDic, rName)
-            elif (newPer > sHMP): # New percentage is higher than the sHMP
-                ReadDic[rName][2] = newPer
-                # ReadDic = check_delta(ReadDic, rName)
+            elif (newRatio > A2): # New mapping ratio is higher than the A2
+                ReadDic[rName][2] = newRatio
     except KeyError: # The read doesn't exists
         print mapRow
         print rName
         print("ERROR: READ "+str(rName)+" DOESN'T EXISTS")
-    #print ReadDic
     return ReadDic
 
 ## Reading SAM file and loading information. Notice that SAM header must be removed. 
@@ -208,7 +220,6 @@ def load_sam_data(samDocs, ReadDic):
 
         for row in sam:    
             if row[0][0] != '@':
-                #print(row, refName, ReadDic)
                 ReadDic = save_map_info(row, refName, ReadDic)
         sam.close()
     return ReadDic
@@ -217,8 +228,8 @@ def load_sam_data(samDocs, ReadDic):
 def load_ref_data(samDocs):
     listofRefs = list()
     listofRefs.append(("Not-Map"))
-    listofRefs.append(("HMR-below-gamma"))
-    listofRefs.append(("SHMR-above-delta"))
+    listofRefs.append(("A1-below-gamma"))
+    listofRefs.append(("A2-above-delta"))
     for samfile in samDocs:
         refName = samfile.split("-")[0] ## The ref code is at the file name ## change this line if needed for different kinds of names
         listofRefs.append((refName))
@@ -249,10 +260,9 @@ def save_map_info_csv(OldDict):
     print ("> "+str(totalReads)+" initial reads")
 
     # Pop top three elements from column
-    # print OldDict.items()
     pop_NM, OldDict = popValue('Not-Map', OldDict)
-    pop_HMR, OldDict = popValue('HMR-below-gamma', OldDict)
-    pop_SHMR, OldDict = popValue('SHMR-above-delta', OldDict)
+    pop_A1, OldDict = popValue('A1-below-gamma', OldDict)
+    pop_A2, OldDict = popValue('A2-above-delta', OldDict)
 
     totalAssig = sum(OldDict.values())
     print ("> "+str(totalAssig)+" reads have been assigned")
@@ -280,17 +290,17 @@ def save_map_info_csv(OldDict):
             outRow.append((os.path.basename(args.R1)))
         writer.writerow(outRow)
         
-        # Write Not-mapped, HMR-below-gamma and SHMR-above-delta
+        # Write Not-mapped, A1-below-gamma and A2-above-delta
         outRow = list(lines[1].rstrip("\r\n").split(";"))
         outRow.append(("Not-Map"+" ("+str(pop_NM)+")"))
         writer.writerow(outRow)
 
         outRow = list(lines[2].rstrip("\r\n").split(";"))
-        outRow.append(('HMR-below-gamma'+" ("+str(pop_HMR)+")"))
+        outRow.append(('A1-below-gamma'+" ("+str(pop_A1)+")"))
         writer.writerow(outRow)
 
         outRow = list(lines[3].rstrip("\r\n").split(";"))
-        outRow.append(('SHMR-above-delta'+" ("+str(pop_SHMR)+")"))
+        outRow.append(('A2-above-delta'+" ("+str(pop_A2)+")"))
         writer.writerow(outRow)
 
         # Write assignments
@@ -308,7 +318,6 @@ def save_map_info_csv(OldDict):
                 outRow.append(0)
             writer.writerow(outRow)
         os.rename(os.path.splitext(args.output)[0]+"AUXoutput.csv", args.output)
-        #os.rename(os.path.splitext(args.output+"AUXoutput.csv")[0], args.output)
     
     ## If output file doesn't exist yet, create it and save the mapping information
     else:
@@ -318,9 +327,9 @@ def save_map_info_csv(OldDict):
             writer.writerow(list([str(os.path.basename(args.sample))])) # Write sample name
         except AttributeError:
             writer.writerow(list([str(os.path.basename(args.R1))])) # Write sample name
-        writer.writerow([str("Not-Map"+" ("+str(pop_NM)+")")]) # Write Not-Map
-        writer.writerow([str('HMR-below-gamma'+" ("+str(pop_HMR)+")")]) # Write 'HMR-below-gamma'
-        writer.writerow([str('SHMR-above-delta'+" ("+str(pop_SHMR)+")")]) # Write 'SHMR-above-delta'
+        writer.writerow([str("Not-Map"+" ("+str(pop_NM)+")")]) 
+        writer.writerow([str('A1-below-gamma'+" ("+str(pop_A1)+")")]) 
+        writer.writerow([str('A2-above-delta'+" ("+str(pop_A2)+")")]) 
 
         for item in sorted_Tupla:
             writer.writerow([str(item[0]+" ("+str(item[1])+"|"+str(round(Decimal(float(item[1])/float(totalAssig)),5))+")")])
@@ -348,7 +357,7 @@ def main():
     ## Saving read's name in a dictionary
     ReadDic, end = inputSamples()
     ## Saving mapping information
-    # Gettin all the SAM files from folder
+    # Getting all the SAM files from folder
     if (args.SAMfolder  is not None):
         os.chdir(args.SAMfolder)
         samfiles = [f for f in os.listdir(args.SAMfolder) if f.endswith(".sam")]
