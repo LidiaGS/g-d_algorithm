@@ -49,8 +49,8 @@ cd /path/to/script<br>
 | Sample 1  | Sample 2 |
 | --- | ---|
 | Not-Map (50)  | Not-Map (60)  |
-| HMR-below-gamma (30)  | HMR-below-gamma (38)   |
-| SHMR-above-delta (20) | SHMR-above-delta (2)  |
+| A1-below-gamma (30)  | A1-below-gamma (38)   |
+| A2-above-delta (20) | A2-above-delta (2)  |
 | Reference 1 (90 \| 0.9)  | Reference 4 (55 \| 0.55)  |
 | Reference 2 (5 \| 0.05)  | Reference 2 (30 \| 0.30)  |
 | Reference 3 (4 \| 0.04)  | Reference 1 (10 \| 0.10)  |
