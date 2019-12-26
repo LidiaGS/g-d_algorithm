@@ -23,7 +23,6 @@ For the correct execution of the pipeline, different paths have to be at the “
   ST_PATH=/path/to/SAMtools<br>
   gd_PATH=/path/to/gamma-delta_algorithm_script<br>
   REF_PATH=/path/to/references<br>
-  R1=/path/to/sample<br>
  
  #### 2.3. BWA indexes
 The *gamma-delta* workflow uses BWA as a read mapper. This requires the existence of the indices of each of the references against which the sample is compared to. Index generation only needs to be performed once and, therefore, the workflow script can be modified to avoid index recomputation when new samples are analyzed and reference indexes already exit. 
