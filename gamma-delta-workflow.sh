@@ -150,13 +150,13 @@ if [[ -z ${R2} ]]; then
 	## Single-end case:
 	for sam in ${OUTPUT_PATH}/mapped_reads/*; do
 		out_ref=${sam##*/}
-		${ST_PATH}/samtools view -@ 24 -S -F2308 ${OUTPUT_PATH}/mapped_reads/${out_ref%%.*}.sam -o ${OUTPUT_PATH}/filtered_reads/${out_ref%%.*}_F2308.sam;
+		${ST_PATH}/samtools view -@ 24 -S -F2308 ${OUTPUT_PATH}/mapped_reads/${out_ref%%.*}.sam -o ${OUTPUT_PATH}/filtered_map/${out_ref%%.*}.sam;
 	done
 else 
 	## Paired-end case:
 	for sam in ${OUTPUT_PATH}/mapped_reads/*; do
 		out_ref=${sam##*/}
-		${ST_PATH}/samtools view -@ 24 -S -F2316 ${OUTPUT_PATH}/mapped_reads/${out_ref%%.*}_PE.sam -o ${OUTPUT_PATH}/filtered_reads/${out_ref%%.*}_F2316.sam;
+		${ST_PATH}/samtools view -@ 24 -S -F2316 ${OUTPUT_PATH}/mapped_reads/${out_ref%%.*}_PE.sam -o ${OUTPUT_PATH}/filtered_map/${out_ref%%.*}.sam;
 	done
 fi
 
