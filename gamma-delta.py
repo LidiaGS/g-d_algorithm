@@ -1,5 +1,6 @@
-# g-d_algorithm_script.py 
-#  
+# gamma-delta.py 
+# coding=utf-8
+#
 # Implementation of the gamma-delta algorithm
 # This file is part of the https://github.com/LidiaGS/g-d_algorithm.
 # Copyright (c) 2019 Universitat Autònoma de Barcelona
@@ -26,13 +27,13 @@ from decimal import Decimal
 
 ## ARGUMENTS DEFINITION
 parser = argparse.ArgumentParser(prog='ARGUMENTS', usage='%(prog)s [options]')
-parser.add_argument("-s",  "--sample",         type=str,   help="Name of sampled data in csv format (e.g.: samples_info.csv)")
-parser.add_argument("-r1",  "--R1",            type=str,   help="R1 Sample")
-parser.add_argument("-r2",  "--R2",            type=str,   help="R2 Sample")
-parser.add_argument("-m",  "--SAMfolder",      type=str,   help="Name of mapped reads file in sam format (e.g: refPM_readsPM.sam). It needs -n argument.")
-parser.add_argument("-g",  "--gamma",          type=str,   help="Minimum percentage")
-parser.add_argument("-d",  "--delta",          type=str,   help="Maximum percentage")
-parser.add_argument("-o",  "--output",         type=str,   help="Output file")
+parser.add_argument("-r",   "--R",         type=str,   help="Single-end read sample (FASTQ/FASTA)")
+parser.add_argument("-r1",  "--R1",             type=str,   help="Forward (R1) paired-end reads sample (FASTQ/FASTA)")
+parser.add_argument("-r2",  "--R2",             type=str,   help="Reverse (R2) paired-end reads sample (FASTQ/FASTA)")
+parser.add_argument("-m",   "--SAMfolder",      type=str,   help="Name of mapped reads file in sam format (e.g: refPM_readsPM.sam).")
+parser.add_argument("-g",   "--gamma",          type=str,   help="Minimum mapping ratio")
+parser.add_argument("-d",   "--delta",          type=str,   help="Maximum mapping ratio")
+parser.add_argument("-o",   "--output",         type=str,   help="Output file")
 args = parser.parse_args()
 
 
@@ -167,7 +168,7 @@ def load_pairedend_reads_data():
 def rename_paired_end(readName, flag):
     check_R2 = int(flag) & 128
     if check_R2 == 0: # R1
-        if (args.sample is not None):  # Single-end read
+        if (args.R is not None):  # Single-end read
             return(readName)
         else:
             return(readName+str("/1")) # Paired-end read
@@ -285,7 +286,7 @@ def save_map_info_csv(OldDict):
         # Write header
         outRow = list(lines[0].rstrip("\r\n").split(";"))
         try:
-            outRow.append((os.path.basename(args.sample)))
+            outRow.append((os.path.basename(args.R)))
         except AttributeError:
             outRow.append((os.path.basename(args.R1)))
         writer.writerow(outRow)
@@ -324,7 +325,7 @@ def save_map_info_csv(OldDict):
         csvoutput = open(args.output, 'w')
         writer = csv.writer(csvoutput)
         try:
-            writer.writerow(list([str(os.path.basename(args.sample))])) # Write sample name
+            writer.writerow(list([str(os.path.basename(args.R))])) # Write sample name
         except AttributeError:
             writer.writerow(list([str(os.path.basename(args.R1))])) # Write sample name
         writer.writerow([str("Not-Map"+" ("+str(pop_NM)+")")]) 
@@ -337,12 +338,12 @@ def save_map_info_csv(OldDict):
     return 
 
 def inputSamples():
-    if (args.sample is not None):
-        if (args.sample[-6:] != '.fasta') and (args.sample[-6:] != '.fastq'):
+    if (args.R is not None):
+        if (args.R[-6:] != '.fasta') and (args.R[-6:] != '.fastq'):
             print 'Input sample data is in a wrong format'
             sampleFile = raw_input("Which is your target file (FASTA/FASTQ)?:")
         else:
-            sampleFile = args.sample
+            sampleFile = args.R
         return(load_reads_data(sampleFile), "R1")
     elif (args.R1 is not None) and (args.R2 is not None):
         return(load_pairedend_reads_data(), "PE")

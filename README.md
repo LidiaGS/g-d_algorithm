@@ -1,37 +1,41 @@
 ## 1. Introduction
 
-#### What's the *gamma-delta* algorithm?
+#### What's the *gamma-delta* workflow?
 
-The *gamma-delta* algorithm aims to identify reads that provide taxonomical information at species level. In particular, it is desined to retain only those reads that helps for identifying species. Briefly, what *gamma-delta* algorithm does is for each mapping of a read *r* against a reference, it obtains a mapping ratio *A*, which is calculated by dividing the number of matching nucleotides from the query read *r* to the target sequences (*nm*) among the total number of nucleotides involved in the alignment (*nt*). Then, a read *r* will be assigned to species *i* when the mapping ratio *A* against species *i* is higher than *gamma* and the alternative species’ mapping ratios are bellow *delta* (Garrido-Sanz et al. 2019, *MBMG*). This algorithm has been writtien in python2.7 language and runs on command line under Linux. 
+* is an automated pipeline for analyses of DNA samples that provides a quantitative estimate of the species that are part of such samples. 
+* Given a DNA sample and a set of reference genomes, corresponding to the possible species included in the sample, the algorithm generates an output file that includes all the species identified in the sample and their relative abundance.
+* Input sample might consist on a set of single- or paired-end reads in FASTA or FASTAQ format. Workflow output is a simple text file in csv format.
+* The core of the workflow is the *gamma-delta* algorithm that classifies reads of the sample by using a series of thresholds (gamma and delta parameters) to ensure the accuracy of the quantitative estimate. Details about this process are described at the paper mentioned at the Citation section.
+
+The *gamma-delta* algorithm aims to identify reads that provide taxonomical information at species level. In particular, it is designed to retain only those reads that help for identifying species. Briefly, what gamma-delta algorithm does is for each mapping of a read *r* against a reference, it obtains a mapping ratio *A*, which is calculated by dividing the number of matching nucleotides from the query read *r* to the target sequences among the total number of nucleotides involved in the alignment. Then, a read *r* will be assigned to species *i* when the mapping ratio *A* against species *i* is higher than gamma and the alternative species’ mapping ratios are bellow delta (Garrido-Sanz et al. 2019, MBMG). This algorithm has been written in python2.7 language and runs on command line under Linux.
 
 ## 2. Setup
 
 #### 2.1. Tools
-The pipeline "submit_pipeline.sh" requieres to have installed the following tools: Trimmomatic, BWA aligner and SAMtools. For the usage of g-d_algorithm_sort_and_sv.py script, also python2.7 had to be installed and the libraries csv, argparse, os, operator and decimal. 
+The following tools need to be installed in the system to run the pipeline: Trimmomatic, BWA aligner and SAMtools. 
+The *gamma-delta* algorithm requires Python 2.7 as well as the csv, argparse, os, operator and decimal libraries.
 
 #### 2.2. Paths
-For the proper performance of the pipeline the user should modify the below listed paths in the "submit_pipeline.sh" script to its own:
+For the correct execution of the pipeline, different paths have to be at the “gamma-delta_workflow.sh” script:
 
   TRIMMOMATIC_PATH=/path/to/Trimmomatic<br>
   BWA_PATH=/path/to/BWA<br>
   ST_PATH=/path/to/SAMtools<br>
-  gd_PATH=/path/to/g-d_algorithm_script<br>
+  gd_PATH=/path/to/gamma-delta_algorithm_script<br>
   REF_PATH=/path/to/references<br>
   R1=/path/to/sample<br>
  
  #### 2.3. BWA indexes
- Notice that the creation of BWA indexes only needs to be performed onces for an specific reference, afterwards this step should be skipped.
+The *gamma-delta* workflow uses BWA as a read mapper. This requires the existence of the indices of each of the references against which the sample is compared to. Index generation only needs to be performed once and, therefore, the workflow script can be modified to avoid index recomputation when new samples are analyzed and reference indexes already exit. 
 
 ## 3. Command-line and options
 
 cd /path/to/script<br>
-./submit_pipeline.sh
 
-#### Singled-end reads assingment
-python g-d_algorithm_sort_and_sv.py -g 0.99 -d 0.98 -m /path/to/sams/folder -s reads.se.fastq -o assignment_SE-reads.csv;<br>
-
-#### Paired-end reads assingment
-python g-d_algorithm_sort_and_sv.py -g 0.99 -d 0.98 -m /path/to/sams/folder -r1 forward.pe.fastq -r2 reverse.pe.fastq -o assignment_PE-reads.csv;<br>
+#### For single-end reads: <br>
+  ./gamma-delta-workflow.sh reads.fastq <br>
+#### For paired-end reads:<br>
+  ./gamma-delta-workflow.sh forward_reads_R1.fastq reverse_reads_R2.fastq <br>
 
 ## 4. Output format
 
@@ -62,4 +66,8 @@ python g-d_algorithm_sort_and_sv.py -g 0.99 -d 0.98 -m /path/to/sams/folder -r1 
 All reports and feedbacks are highly appreciate. Please report any suggestion on github or by email to lidia.garrido@uab.cat. 
 
 ## 7. Disclaimer
-The authors provided the information in good faith. Under no circumstance shall authors and the Autonomous University of Barcelona have any liability to you for any loss or damage of any kind incurred as a result of the use of the information provided. The use of this information is solely at your own risk. 
+The authors provided the information and software in good faith. Under no circumstance shall authors and the Universitat Autònoma de Barcelona have any liability for any loss or damage of any kind incurred as a result of the use of the information and software provided. The use of this tool is solely at your own risk.
+
+## 8. Citation
+
+Comming soon...
