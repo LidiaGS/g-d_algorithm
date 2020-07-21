@@ -156,14 +156,14 @@ else
 	## Paired-end case:
 	for sam in ${OUTPUT_PATH}/mapped_reads/*; do
 		out_ref=${sam##*/}
-		${ST_PATH}/samtools view -@ 24 -S -F2316 ${OUTPUT_PATH}/mapped_reads/${out_ref%%.*}_PE.sam -o ${OUTPUT_PATH}/filtered_map/${out_ref%%.*}.sam;
+		${ST_PATH}/samtools view -@ 24 -S -F2308 ${OUTPUT_PATH}/mapped_reads/${out_ref%%.*}_PE.sam -o ${OUTPUT_PATH}/filtered_map/${out_ref%%.*}.sam;
 	done
 fi
 
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## ASSING READS TO A SINGLE SPECIES
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#  Using the gamma-delta algorithm
+#  Using the gamma-delta algorithm with values of gamma=0.99 and delta=0.98
 ##---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 echo "Reads assignment starts at: `date +%Y/%m/%d-%H:%M:%S`";
 if [[ -z ${R2} ]]; then  

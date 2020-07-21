@@ -13,7 +13,7 @@ The *gamma-delta* algorithm aims to identify reads that provide taxonomical info
 
 #### 2.1. Tools
 The following tools need to be installed in the system to run the pipeline: Trimmomatic, BWA aligner and SAMtools. 
-The *gamma-delta* algorithm requires Python 2.7 as well as the csv, argparse, os, operator and decimal libraries.
+The *gamma-delta* algorithm requires Python 2.7 as well as the csv, argparse, os, operator, decimal and datetime libraries.
 
 #### 2.2. Paths
 For the correct execution of the pipeline, different paths have to be at the “gamma-delta_workflow.sh” script:
@@ -39,16 +39,16 @@ cd /path/to/script<br>
 ## 4. Output format
 
 **Column header:** Query name of the sample<br>
-**Not-Map:** Number of reads that did not map to any reference<br>
-**HMR-below-gamma:** Number of reads that were removed by *gamma* threshold<br>
-**SHMR-above-delta:** Number of reads that were removed by *delta* threshold<br>
+**Not-mapping-reads:** Number of reads that did not map to any reference<br>
+**A1-below-gamma:** Number of reads that were removed by *gamma* threshold<br>
+**A2-above-delta:** Number of reads that were removed by *delta* threshold<br>
 **List of recovered species:** Name of the reference as the name of the SAM file (Number of reads \| Relative proportion of reads)<br>
 
 **Example:**<br>
 
 | Sample 1  | Sample 2 |
 | --- | ---|
-| Not-Map (50)  | Not-Map (60)  |
+| Not-mapping-reads (50)  | Not-mapping-reads (60)  |
 | A1-below-gamma (30)  | A1-below-gamma (38)   |
 | A2-above-delta (20) | A2-above-delta (2)  |
 | Reference 1 (90 \| 0.9)  | Reference 4 (55 \| 0.55)  |
@@ -68,5 +68,4 @@ All reports and feedbacks are highly appreciate. Please report any suggestion on
 The authors provided the information and software in good faith. Under no circumstance shall authors and the Universitat Autònoma de Barcelona have any liability for any loss or damage of any kind incurred as a result of the use of the information and software provided. The use of this tool is solely at your own risk.
 
 ## 8. Citation
-
-Comming soon...
+Garrido-Sanz L, Senar MÀ, Piñol J (2020) Estimation of the relative abundance of species in artificial mixtures of insects using low-coverage shotgun metagenomics. Metabarcoding and Metagenomics 4: e48281. https://doi.org/10.3897/mbmg.4.48281

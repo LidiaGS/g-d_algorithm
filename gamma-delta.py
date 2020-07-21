@@ -24,27 +24,28 @@ import os
 from os.path import isfile, join
 import operator
 from decimal import Decimal
+import datetime
 
 ## ARGUMENTS DEFINITION
 parser = argparse.ArgumentParser(prog='ARGUMENTS', usage='%(prog)s [options]')
-parser.add_argument("-r",   "--R",         type=str,   help="Single-end read sample (FASTQ/FASTA)")
-parser.add_argument("-r1",  "--R1",             type=str,   help="Forward (R1) paired-end reads sample (FASTQ/FASTA)")
-parser.add_argument("-r2",  "--R2",             type=str,   help="Reverse (R2) paired-end reads sample (FASTQ/FASTA)")
-parser.add_argument("-m",   "--SAMfolder",      type=str,   help="Name of mapped reads file in sam format (e.g: refPM_readsPM.sam).")
-parser.add_argument("-g",   "--gamma",          type=str,   help="Minimum mapping ratio")
-parser.add_argument("-d",   "--delta",          type=str,   help="Maximum mapping ratio")
-parser.add_argument("-o",   "--output",         type=str,   help="Output file")
+parser.add_argument("-r",   "--R",              type=str,   help="Single-end read sample (FASTQ/FASTA)")
+parser.add_argument("-r1",  "--R1",             type=str,   help="Separeted paired-end reads sample, R1 (forward) file (FASTA/FASTQ format)")
+parser.add_argument("-r2",  "--R2",             type=str,   help="Separeted paired-end reads sample, R2 (reverse) file (FASTA/FASTQ format)")
+parser.add_argument("-m",   "--SAMfolder",      type=str,   help="Folder containing the mapped reads files in SAM format (e.g: mapped_reads.sam).")
+parser.add_argument("-g",   "--gamma",          type=str,   help="Gamma threshold (per one unit) [1-0]")
+parser.add_argument("-d",   "--delta",          type=str,   help="Delta threshold (per one unit) [1-0]")
+parser.add_argument("-o",   "--output",         type=str,   help="Name of the output file (CSV format)")
+parser.add_argument("-O",   "--outInfo",        type=str,   help="Output the assignment of each read (CSV format)")
 args = parser.parse_args()
 
-
-## Abreviations
-# A1:  First highest mapping ratio
+## ABREVIATIONS
+# A1:  Highest mapping ratio
 # A2:  Second highest mapping ratio
 
 ## FUNCTIONS 
 
-## Obtaining the mapping ratio of a read against a reference by using CIGAR and NM from SAM file
-def mapping_ratio_alignment(read_CIGAR, read_NM, read_len):
+## Obtaining the mapping ratio (A) read against a reference by using CIGAR and NM from SAM file
+def mapping_ratio(read_CIGAR, read_NM):
     num_cigar = 0
     match_mismatch = 0
     insertion = 0
@@ -57,53 +58,50 @@ def mapping_ratio_alignment(read_CIGAR, read_NM, read_len):
     match = 0 
     NM_mismatch = 0
     total_cigar = 0
-    aln_ratio = 0
+    map_ratio = 0
 
     ## Trim CIGAR into parts and join same values: 
-    try: 
-        for cigar in read_CIGAR: ## Looping through elements of CIGAR
-            if cigar.isdigit(): # Save numeric values from CIGAR
-                num_cigar = num_cigar * 10
-                num_cigar = int(cigar) + num_cigar                
-            else: # Save numeric values from CIGAR to its cathegory (i.e.: Matching/mismatchig, indels, ...)
-                if cigar == 'M': ## M: matches & mismatches
-                    match_mismatch = num_cigar + match_mismatch
-                    num_cigar = 0
-                elif cigar == 'I': ## I: insertion 
-                    insertion = num_cigar + insertion
-                    num_cigar = 0                
-                elif cigar == 'D': ## D: deletion
-                    deletion = num_cigar + deletion
-                    num_cigar = 0
-                elif cigar == 'S': ## S: soft-clipped
-                    soft_clipped = num_cigar + soft_clipped
-                    num_cigar = 0
-                elif cigar == 'H': ## H: hard-clipped
-                    hard_clipped = num_cigar + hard_clipped
-                    num_cigar = 0
-                elif cigar == 'P': ## P: Padding
-                    padding = num_cigar + padding
-                    num_cigar = 0
-                elif cigar == 'N': ## N: Skipped
-                    skipped = num_cigar + skipped
-                    num_cigar = 0
-                elif cigar == 'X': ## X: Mismatch
-                    mismatch = num_cigar + mismatch
-                    num_cigar = 0
-                elif cigar == '=': ## =: Match
-                    match = num_cigar + match
-                    num_cigar = 0
-                elif cigar == '*':
-                    num_cigar = 0
-    except ValueError:
-        print("Error: ON CIGAR")
+    for cigar in read_CIGAR: # Looping through elements of CIGAR
+        if cigar.isdigit(): # Save numeric values from CIGAR
+            num_cigar = num_cigar * 10
+            num_cigar = int(cigar) + num_cigar                
+        else: # Save numeric values from CIGAR to its cathegory (i.e.: Matching/mismatchig, indels, ...)
+            if cigar == 'M': ## M: matches & mismatches
+                match_mismatch = num_cigar + match_mismatch
+                num_cigar = 0
+            elif cigar == 'I': ## I: insertion 
+                insertion = num_cigar + insertion
+                num_cigar = 0                
+            elif cigar == 'D': ## D: deletion
+                deletion = num_cigar + deletion
+                num_cigar = 0
+            elif cigar == 'S': ## S: soft-clipped
+                soft_clipped = num_cigar + soft_clipped
+                num_cigar = 0
+            elif cigar == 'H': ## H: hard-clipped
+                hard_clipped = num_cigar + hard_clipped
+                num_cigar = 0
+            elif cigar == 'P': ## P: Padding
+                padding = num_cigar + padding
+                num_cigar = 0
+            elif cigar == 'N': ## N: Skipped
+                skipped = num_cigar + skipped
+                num_cigar = 0
+            elif cigar == 'X': ## X: Mismatch
+                mismatch = num_cigar + mismatch
+                num_cigar = 0
+            elif cigar == '=': ## =: Match
+                match = num_cigar + match
+                num_cigar = 0
+            elif cigar == '*':
+                num_cigar = 0
     
-    ## Length of CIGAR
+    ## Length of CIGAR (also reads length)
     total_cigar = match_mismatch + insertion + deletion + soft_clipped + hard_clipped + padding + skipped + mismatch + match
 
     ## Mapping ratio
-    aln_ratio = (((read_len + deletion + skipped) - float(read_NM) - soft_clipped - hard_clipped - mismatch) / (read_len + deletion + skipped)) 
-    return aln_ratio
+    map_ratio = (((total_cigar + deletion + skipped) - float(read_NM) - soft_clipped - hard_clipped - mismatch) / (total_cigar + deletion + skipped)) 
+    return map_ratio
 
 ## Looking for NM information thought columns of SAM rows
 def findNM(samLine):
@@ -113,157 +111,146 @@ def findNM(samLine):
             return elem[5:] ## Keeping NM tag value without "NM:i:"
     return 0
 
-## Create a dictionary using read's names as key and adding an empty list of three elements (best hit ref., A1 and second best hit ref.) to each dictionary element. 
-def load_reads_data(sampleDoc): 
-    print 'Loading sample data...'
-    reads = open(sampleDoc, "r") 
-    
-    ## Check if input data is in FASTA or FASTQ format
-    if(sampleDoc[-1:]=="a"): # FASTA file
-        j = 2
-    else: # FASTQ file
-        j = 4   
-
-    ReadDic = dict()
-    i = 0
-    for row in reads:
-        if (i%j == 0): ## Reading only the headers without the "@"
-            readName = row.split(' ')[0][1:]
-            ReadDic[readName.replace("\n","")] = list([0, '0', 0]) # Create and empty tuple, so A1 and A2 are zero.
-        i+=1         
-    reads.close()
-    return ReadDic
-
-def check_read_name(readName, ending):
-	readName=readName.replace("\n","").replace("/1","").replace("/2","")
-	return readName+str(ending)
-
-def load_pairedend_reads_data(): 
-    print 'Loading sample data...'
-
-    ## Check if input data is in FASTA or FASTQ format
-    if(args.R1[-1:]=="a"): # FASTA file
-        j = 2
-    else: # FASTQ file
-        j = 4   
-    i = 0
-    ReadDic = dict()
-    reads = open(args.R1, "r") 
-    for row in reads:
-        if (i%j == 0): 
-            readName = row.split(' ')[0][1:]
-            ReadDic[check_read_name(readName,"/1")] = list([0, '0', 0]) # Create and empty tuple, so A1 and A2 are zero.         
-        i += 1
-    reads.close()
-    i = 0
-    reads = open(args.R2, "r") 
-    for row in reads:
-        if (i%j == 0): 
-            readName = row.split(' ')[0][1:]
-            ReadDic[check_read_name(readName,"/2")] = list([0, '0', 0]) # Create and empty tuple, so A1 and A2 are zero.         
-        i += 1
-    reads.close()
-    return ReadDic
-
+## When working with paried-end reads, add "/1" and "/2" at the end of the R1 and R2 names, respectively
 def rename_paired_end(readName, flag):
-    check_R2 = int(flag) & 128
-    if check_R2 == 0: # R1
-        if (args.R is not None):  # Single-end read
-            return(readName)
+    if ((int(flag) & 1) == 1): # # Check paired-end read; if true, this are paired-end reads
+        if ((int(flag) & 128) == 128): # Check second in pair; if true, return R2
+            return(readName+str("/2"))
+        else: # R1
+            return(readName+str("/1"))
+    else: # Single-end read
+        return(readName+str(""))
+
+## Check that A1 is above gamma and A2 below delta
+def check_distance(ReadDict):
+    for ReadId in ReadDict:
+        if (float(ReadDict[ReadId][5]) >= float(args.delta)):
+            ReadDict[ReadId][9] = "A2-above-delta"
+        elif ((float(ReadDict[ReadId][0]) < float(args.gamma))):
+            ReadDict[ReadId][9] = "A1-below-gamma"
         else:
-            return(readName+str("/1")) # Paired-end read
-    elif check_R2 == 128: # R2
-        return(readName+str("/2"))
-    else:
-        return(readName)
+            ReadDict[ReadId][9] = "Assigned"
+    return ReadDict
 
-def check_distance(ReadDic): #
-    for rName in ReadDic:
-        if (ReadDic[rName][0] == 0):
-            ReadDic[rName][1] = "Not-Map"
-        elif ((ReadDic[rName][0] != 0) and (float(ReadDic[rName][0]) < float(args.gamma))):
-            ReadDic[rName][1] = "A1-below-gamma"
-        elif ((float(ReadDic[rName][0]) >= float(args.gamma)) and (float(ReadDic[rName][2]) >= float(args.delta))):
-            ReadDic[rName][1] = "A2-above-delta"
-    return ReadDic
-
-## Saving read's mapping information for a given reference into the read's dictionary
-def save_map_info(mapRow, mapRef, ReadDic):
+## Saving the mapping information for a given read and reference into the dictionary
+def save_map_info(mapRow, mapRef, ReadDict):
     mapRow = mapRow.strip('\n')
     row = mapRow.split("\t")
-    rName = str(rename_paired_end(row[0],row[1])) ## Name
+    ReadId =  str(rename_paired_end(row[0],row[1])) # RNAME
+    
+    # Create read in the dictionary if the key does not exist yet
+    if (ReadId not in ReadDict): 
+        ReadDict[ReadId] = list([0, '0', 'NA', 'NA', 'NA', 0, 'NA', 'NA', '0', 'NA']) # Create and empty tuple, so A1 and A2 are zero.
+    
+    # Obtain the mapping ratio of the read in the current row 
+    newRatio = mapping_ratio(row[5], findNM(row)) # CIGAR, NM are picked
+    
+    # New mapping ratio is higher or equal to A1
+    if (newRatio >= ReadDict[ReadId][0]): 
+        # Changing A2
+        ReadDict[ReadId][5] = ReadDict[ReadId][0] # A2 (A2 to old A1)
+        ReadDict[ReadId][6] = ReadDict[ReadId][1] # Reference id of A2 (A2 to old A1)
+        ReadDict[ReadId][7] = ReadDict[ReadId][2] # RNAME A2 (A2 to old A1)
+        ReadDict[ReadId][8] = ReadDict[ReadId][3] # POS A2 (A2 to old A1)
+        # Changing A1
+        ReadDict[ReadId][0] = newRatio # A1 (old A1 to new A1)
+        ReadDict[ReadId][1] = mapRef # Reference id of A1 (old A1 to new A1)
+        ReadDict[ReadId][2] = row[2] # RNAME A1 (old A1 to new A1)
+        ReadDict[ReadId][3] = row[3] # POS A1 (old A1 to new A1)
+        ReadDict[ReadId][4] = row[1] # FLAG A1 (old A1 to new A1)
+    # New mapping ratio is higher than A2    
+    elif (newRatio > ReadDict[ReadId][5]):
+        ReadDict[ReadId][5] = newRatio # A2 (old A2 to new A1)
+        ReadDict[ReadId][6] = mapRef # Reference id of A2 (old A2 to new A1)
+        ReadDict[ReadId][7] = row[2] # RNAME A2 (old A2 to new A1)
+        ReadDict[ReadId][8] = row[3] # POS A2 (old A2 to new A1)
+    return ReadDict
 
-    try: # The read has already information
-        fA1, refA1, A2 = ReadDic[rName]
-        if (refA1 != "A2-above-delta"): # Non-informative reads
-            cigar = row[5]
-            readLen = len(row[9])
-            NM = findNM(row)
-            newRatio = mapping_ratio_alignment(cigar, NM, readLen)
-            if (newRatio >= fA1): # New mapping ratio is higher or equal to the fA1
-                ReadDic[rName][2] = ReadDic[rName][0]
-                ReadDic[rName][0] = newRatio
-                ReadDic[rName][1] = mapRef
-            elif (newRatio > A2): # New mapping ratio is higher than the A2
-                ReadDic[rName][2] = newRatio
-    except KeyError: # The read doesn't exists
-        print mapRow
-        print rName
-        print("ERROR: READ "+str(rName)+" DOESN'T EXISTS")
-    return ReadDic
-
-## Reading SAM file and loading information. Notice that SAM header must be removed. 
-def load_sam_data(samDocs, ReadDic):
-    for samfile in samDocs:
-        refName = samfile.split(".")[0] ## The ref code is at the file name
+## Read and load SAM files. Notice that SAM header is ignored.
+def load_sam_data(samDocs):
+    ReadDict = dict()
+    print "Loading mapping information..."
+    for samfile in samDocs: # Loop through files in folder
+        refName = samfile.split(".")[0] # The ref code is at the file name
         sam = open(samfile, "r")
-        print "Loading mapping information: ", samfile
-
-        for row in sam:    
-            if row[0][0] != '@':
-                ReadDic = save_map_info(row, refName, ReadDic)
+        for row in sam:  # Loop through lines in sam file
+            if row[0][0] != '@': # Avoiding headers
+                ReadDict = save_map_info(row, refName, ReadDict)
         sam.close()
-    return ReadDic
+    return ReadDict
 
-## Saving a list with the names of all the references using as name the names of the input files (i.e: for "0-PM" we will keep "PM")
-def load_ref_data(samDocs):
-    listofRefs = list()
-    listofRefs.append(("Not-Map"))
-    listofRefs.append(("A1-below-gamma"))
-    listofRefs.append(("A2-above-delta"))
-    for samfile in samDocs:
-        refName = samfile.split("-")[0] ## The ref code is at the file name ## change this line if needed for different kinds of names
-        listofRefs.append((refName))
-    return listofRefs
-
-## Creating a dictionary for references, so saving the number of assigned reads per references
-def summary_dic(ReadDic):
+## Create a dictionary for storing the number of reads assigned to each reference
+def summary_dict(ReadDict):
     SumDic = dict()
-    for rName in ReadDic:
-        if ReadDic[rName][1] in SumDic: # Reference already exists
-            SumDic[ReadDic[rName][1]] += 1    
-        else: # Reference doesn't exist yet
-            newkey = ReadDic[rName][1]
-            SumDic[newkey] = 1
-    # Returning the dictionary sorted by the decreasing number of reads
+    SumDic["A1-below-gamma"] = 0
+    SumDic["A2-above-delta"] = 0
+
+    for ReadId in ReadDict:
+        ## Check if the read has been assigned 
+        if ReadDict[ReadId][9] == "Assigned": 
+            if ReadDict[ReadId][1] in SumDic: # Reference already exists
+                SumDic[ReadDict[ReadId][1]] += 1
+            else: # Reference doesn't exist yet
+                newkey = ReadDict[ReadId][1]
+                SumDic[newkey] = 1
+        ## If the read has not been assigned, save the reason
+        elif ReadDict[ReadId][9] == "A1-below-gamma":
+            SumDic["A1-below-gamma"] += 1
+        elif ReadDict[ReadId][9] == "A2-above-delta":
+            SumDic["A2-above-delta"] += 1
     return SumDic
 
-def popValue(valueKey, inDict):
+# Pop value "valueKey" from dictionary
+def popValue(valueKey, ReadDict):
     try:
-        pop_ele = inDict.pop(valueKey)
-        return (pop_ele, inDict) # Return the value associated to the key and the Dictionary without the element
+        pop_elem = ReadDict.pop(valueKey)
+        return (pop_elem, ReadDict) # Return the value associated to the key and the Dictionary without the element
     except KeyError:
-        return (0, inDict)
+        return (0, ReadDict)
 
-## Saving reference's dictionary on a CSV file
+# Obtain header column name
+def sample_header():
+    if (args.R is not None):
+        return os.path.basename(args.R)
+    elif ((args.R1 is not None) and (args.R2 is not None)):
+        return str(os.path.basename(args.R1))+" + "+str(os.path.basename(args.R2))
+    elif (args.SAMfolder is not None):
+        return args.SAMfolder
+    elif (args.SAMfile is not None):
+        return args.SAMfile
+    else:
+        return str("Sample:")+str(datetime.datetime.now().time())
+
+# Count the number of reads in file (FASTQ/FASTA formats)
+def count_reads_in_file(fileName):
+    if(fileName[-1:]=="a"): # FASTA file
+        j = 2
+    else: # FASTQ file
+        j = 4   
+    return(len(open(fileName).readlines( ))/j)
+
+# Return the number of NOT mapped reads
+def count_notMappedReads(mappedReads):
+    if (args.R is not None):
+        totalReads = count_reads_in_file(args.R)
+        print ("> Initial reads: "+str(totalReads))
+        return(totalReads -int(mappedReads))
+    elif ((args.R1 is not None) and (args.R2 is not None)):
+        totalReads = count_reads_in_file(args.R1)*2
+        print ("> Initial reads: "+str(totalReads))
+        return(totalReads -int(mappedReads))
+    return(0)
+
+## Save on a CSV file the summary information of the detected species together with the total number of reads assigned and their relative species abundance 
 def save_map_info_csv(OldDict):
-    totalReads = sum(OldDict.values())
-    print ("> "+str(totalReads)+" initial reads")
+    totalMapp = sum(OldDict.values())
+    totalNotMapp = count_notMappedReads(totalMapp)
+    totalReads = totalMapp + totalNotMapp
+    print ("> Mapped reads: "+str(totalMapp))
 
-    # Pop top three elements from column
-    pop_NM, OldDict = popValue('Not-Map', OldDict)
-    pop_A1, OldDict = popValue('A1-below-gamma', OldDict)
-    pop_A2, OldDict = popValue('A2-above-delta', OldDict)
+    # Pop top two elements from column
+    rm_by_A1, OldDict = popValue('A1-below-gamma', OldDict)
+    rm_by_A2, OldDict = popValue('A2-above-delta', OldDict)
 
     totalAssig = sum(OldDict.values())
     print ("> "+str(totalAssig)+" reads have been assigned")
@@ -280,39 +267,35 @@ def save_map_info_csv(OldDict):
         reader = csv.reader(csvinput)
         lines = csvinput.readlines()
         csvoutput = open(os.path.splitext(args.output)[0]+"AUXoutput.csv", 'w')
-        #csvoutput = open(os.path.dirname(args.output)+"AUXoutput.csv", 'w')
         writer = csv.writer(csvoutput, delimiter=";")
 
         # Write header
         outRow = list(lines[0].rstrip("\r\n").split(";"))
-        try:
-            outRow.append((os.path.basename(args.R)))
-        except AttributeError:
-            outRow.append((os.path.basename(args.R1)))
+        outRow.append((str(sample_header())))
         writer.writerow(outRow)
         
         # Write Not-mapped, A1-below-gamma and A2-above-delta
         outRow = list(lines[1].rstrip("\r\n").split(";"))
-        outRow.append(("Not-Map"+" ("+str(pop_NM)+")"))
+        outRow.append(("Not-Map"+" ("+str(totalNotMapp)+")"))
         writer.writerow(outRow)
 
         outRow = list(lines[2].rstrip("\r\n").split(";"))
-        outRow.append(('A1-below-gamma'+" ("+str(pop_A1)+")"))
+        outRow.append(('A1-below-gamma'+" ("+str(rm_by_A1)+")"))
         writer.writerow(outRow)
 
         outRow = list(lines[3].rstrip("\r\n").split(";"))
-        outRow.append(('A2-above-delta'+" ("+str(pop_A2)+")"))
+        outRow.append(('A2-above-delta'+" ("+str(rm_by_A2)+")"))
         writer.writerow(outRow)
 
         # Write assignments
         for i in range(max(len(OldDict),len(lines)-4)): # Loop through lines in max(file/dictionary)
-            # ADD OLD DATA FROM FILE
+            # Add data from the file
             try:
                 outRow = list(lines[i+4].rstrip("\r\n").split(";")) # +4 for avoiding the first 4 lines
             except IndexError: # If the new data has more lines than the old data
                 outRow = list([0]*len(lines[0].rstrip("\r\n").split(";")))
             
-            # ADD NEW DATA ON FILE TO A NEW COLUMN
+            # Add new column into an existing file 
             try:
                 outRow.append(sorted_Tupla[i][0]+" ("+str(sorted_Tupla[i][1])+"|"+str(round(Decimal(float(sorted_Tupla[i][1])/float(totalAssig)),5))+")")
             except IndexError: # New data has less lines than old data
@@ -320,61 +303,55 @@ def save_map_info_csv(OldDict):
             writer.writerow(outRow)
         os.rename(os.path.splitext(args.output)[0]+"AUXoutput.csv", args.output)
     
-    ## If output file doesn't exist yet, create it and save the mapping information
+    # If output file doesn't exist yet, create it and save the mapping information
     else:
         csvoutput = open(args.output, 'w')
         writer = csv.writer(csvoutput)
-        try:
-            writer.writerow(list([str(os.path.basename(args.R))])) # Write sample name
-        except AttributeError:
-            writer.writerow(list([str(os.path.basename(args.R1))])) # Write sample name
-        writer.writerow([str("Not-Map"+" ("+str(pop_NM)+")")]) 
-        writer.writerow([str('A1-below-gamma'+" ("+str(pop_A1)+")")]) 
-        writer.writerow([str('A2-above-delta'+" ("+str(pop_A2)+")")]) 
+        writer.writerow(list([str(sample_header())])) # Write sample name
+        writer.writerow([str("Not-mapping-reads"+" ("+str(totalNotMapp)+")")]) # Write Not-Map
+        writer.writerow([str('A1-below-gamma'+" ("+str(rm_by_A1)+")")]) # Write 'A1-below-gamma'
+        writer.writerow([str('A2-above-delta'+" ("+str(rm_by_A2)+")")]) # Write 'A2-above-delta'
 
         for item in sorted_Tupla:
             writer.writerow([str(item[0]+" ("+str(item[1])+"|"+str(round(Decimal(float(item[1])/float(totalAssig)),5))+")")])
     csvoutput.close()
     return 
 
-def inputSamples():
-    if (args.R is not None):
-        if (args.R[-6:] != '.fasta') and (args.R[-6:] != '.fastq'):
-            print 'Input sample data is in a wrong format'
-            sampleFile = raw_input("Which is your target file (FASTA/FASTQ)?:")
-        else:
-            sampleFile = args.R
-        return(load_reads_data(sampleFile), "R1")
-    elif (args.R1 is not None) and (args.R2 is not None):
-        return(load_pairedend_reads_data(), "PE")
-    else:
-        print "ERROR: specified samples are wrong"
-    return()
+# Save on a CSV file the assignment information of each single read
+def save_dic(ReadDict):
+    csv_columns = ["RNAME","A1","REF_A1","SCAF_A1","POS_A1","FLAG_A1","A2","ref_A2","SCAF_A2","POS_A2","ASSIGNMENT"]
+    with open(args.outInfo, 'w') as csvoutput:
+        writer = csv.writer(csvoutput, delimiter=";")
+        writer.writerow(csv_columns)
+        for key in ReadDict.keys():
+            o = ReadDict[key]
+            o.insert(0,key)
+            writer.writerow(o)
+    csvoutput.close()     
 
 ## MAIN PROGRAMME
-
 def main():
 
-    ## Saving read's name in a dictionary
-    ReadDic, end = inputSamples()
-    ## Saving mapping information
-    # Getting all the SAM files from folder
-    if (args.SAMfolder  is not None):
+    # Saving mapping information (SAM files)
+    if (args.SAMfolder  is not None): # Getting all the SAM files from folder
         os.chdir(args.SAMfolder)
         samfiles = [f for f in os.listdir(args.SAMfolder) if f.endswith(".sam")]
     else:
         samfol = raw_input("Where are the SAM files?:")
         os.chdir(samfol)
         samfiles = [f for f in os.listdir(samfol) if f.endswith(".sam")]
-    print(samfiles)
+    ReadDict = load_sam_data(samfiles)
 
-    ReadDic = load_sam_data(samfiles, ReadDic)
-    #RefList = load_ref_data(samfiles)
-    ReadDic = check_distance(ReadDic)
+    ## Check that the A1 and A2 fulfill the gamma and delta thresholds requirements (e.g. A1 above gamma and A2 below delta)
+    ReadDict = check_distance(ReadDict)
     
     print("Summarizing data...")
-    summary = summary_dic(ReadDic)
+    summary = summary_dict(ReadDict)
     save_map_info_csv(summary)
+
+    ## Save each read assingment information
+    if (args.outInfo is not None):
+        save_dic(ReadDict)
     return
 
 ## MAIN 
