@@ -333,6 +333,7 @@ def save_dic(ReadDict):
 def main():
 
     # Saving mapping information (SAM files)
+    wd = os.getcwd() # Get working directory
     if (args.SAMfolder  is not None): # Getting all the SAM files from folder
         os.chdir(args.SAMfolder)
         samfiles = [f for f in os.listdir(args.SAMfolder) if f.endswith(".sam")]
@@ -346,6 +347,7 @@ def main():
     ReadDict = check_distance(ReadDict)
     
     print("Summarizing data...")
+    os.chdir(wd) # Turn back to the original working directory
     summary = summary_dict(ReadDict)
     save_map_info_csv(summary)
 
